@@ -14,8 +14,10 @@ import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 @Configuration
@@ -23,7 +25,9 @@ import java.util.stream.Stream;
 public class Demo {
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
+
     private final ConcurrencyStorage<Integer> concurrencyStorage;
+    private final List<Integer> items = Stream.iterate(1, i -> i + 1).limit(100).collect(Collectors.toList());
 
     private static final int chunkSize = 3;
     private static final int itemSize = 10;
@@ -52,7 +56,7 @@ public class Demo {
 
     @Bean
     @JobScope
-    public Step demoStep2(){
+    public Step demoStep2() {
         return stepBuilderFactory.get("demo-step2")
                 .<Integer, Integer>chunk(chunkSize)
                 .reader(reader2())
@@ -64,8 +68,8 @@ public class Demo {
     @Bean
     @StepScope
     public ListItemReader<Integer> reader() {
-        List<Integer> items = Stream.iterate(1, i -> i + 1).limit(itemSize).collect(Collectors.toList());
-        items.forEach(it -> System.out.println("reader : item = "+it));
+        List<Integer> items = IntStream.range(0, 9).mapToObj(this.items::get).collect(Collectors.toList());
+        items.forEach(item -> System.out.println("reader : item = " + item));
 
         return new ListItemReader<>(items);
     }
@@ -73,8 +77,8 @@ public class Demo {
     @Bean
     @StepScope
     public ItemProcessor<Integer, Integer> processor() {
-        return item ->{
-            System.out.println("processor : item = "+item);
+        return item -> {
+            System.out.println("processor : item = " + item);
             return item;
         };
     }
@@ -83,12 +87,12 @@ public class Demo {
     @StepScope
     public ItemWriter<Integer> writer() {
         return items -> items.forEach(item -> {
-            if (item%3==0)
+            if (item % 3 == 0)
                 throw new RuntimeException("hi ?");
 
             this.concurrencyStorage.put(String.valueOf(item), item);
 
-            System.out.println("writer : item = "+item);
+            System.out.println("writer : item = " + item);
         });
     }
 
@@ -96,7 +100,7 @@ public class Demo {
     @StepScope
     public ListItemReader<Integer> reader2() {
         List<Integer> items = this.concurrencyStorage.getAllValue();
-        items.forEach(it -> System.out.println("reader2 : item = "+it));
+        items.forEach(it -> System.out.println("reader2 : item = " + it));
 
         return new ListItemReader<>(items);
     }
@@ -104,8 +108,8 @@ public class Demo {
     @Bean
     @StepScope
     public ItemProcessor<Integer, Integer> processor2() {
-        return item ->{
-            System.out.println("processor2 : item = "+item);
+        return item -> {
+            System.out.println("processor2 : item = " + item);
             return item;
         };
     }
